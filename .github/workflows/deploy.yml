@@ -40,35 +40,6 @@ jobs:
           pip install -r requirements.txt
           pip install dvc  # Install DVC for pipeline orchestration
 
-      - name: Configure DVC remote
-        run: |
-          # Configure DVC remote using secrets
-          # Supports: S3, GDrive, GS, OSS, Azure, etc.
-          # Uncomment the appropriate remote type and set secrets:
-
-          # ── Option 1: S3 ──
-          # dvc remote default origin
-          # dvc remote modify origin endpointurl ${{ secrets.S3_ENDPOINT }}
-          # Or use AWS credentials directly:
-          # dvc remote modify origin access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          # dvc remote modify origin secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-          # ── Option 2: Google Drive ──
-          # dvc remote default myremote
-          # dvc remote modify myremote gdrive_user_credentials_file gdrive-credentials.json
-
-          # ── Option 3: MinIO / S3-compatible ──
-          dvc remote default myremote
-          dvc remote modify myremote access_key_id ${{ secrets.S3_ACCESS_KEY_ID }}
-          dvc remote modify myremote secret_access_key ${{ secrets.S3_SECRET_ACCESS_KEY }}
-          dvc remote modify myremote endpointurl ${{ secrets.S3_ENDPOINT_URL }}
-          echo "DVC remote configured"
-
-      - name: Pull DVC data
-        run: |
-          dvc pull --remote myremote || echo "No remote data pulled - checking local cache"
-          echo "DVC data pull complete"
-
       - name: Reproduce DVC pipeline
         run: |
           dvc repro
@@ -82,12 +53,6 @@ jobs:
             data/processed/
             data/interim/
           retention-days: 1
-
-      - name: Push DVC updates back
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        run: |
-          dvc push --remote myremote
-          echo "DVC artifacts pushed to remote"
 
   # ───────────────────────────────────────────────────────
   # STAGE 2: Build Docker Image
