@@ -13,3 +13,7 @@ python-dotenv>=0.5.1
 pipreqs
 pandas
 numpy
+scikit-learn   dask[dataframe]
+category_encoders
+rapidfuzz
+dask[dataframe]
