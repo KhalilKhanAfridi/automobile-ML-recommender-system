@@ -31,44 +31,46 @@ stages:
   data_cleaning:
     cmd: python src/components/data_cleaning.py
     deps:
+    - path: data/raw/car_links.csv
+      hash: md5
+      md5: 138f0f6b73a86837d159d427005d6c08
+      size: 462060
     - path: data/raw/cars_data.csv
       hash: md5
       md5: 2a22533add5c5544c6deea5e34ae3749
       size: 516415
     - path: src/components/data_cleaning.py
       hash: md5
-      md5: 8b29a350fa724dc91c5e8b5b41ce8a20
-      size: 4987
+      md5: c55ec4719853ceb8ddddec74cbde1c3e
+      size: 5603
     outs:
-    - path: data/interim/cars_cleaned.csv
+    - path: data/interim/cars_cleaned.parquet
       hash: md5
-      md5: d96c0d94fa88e07d30252ae98d1acd29
-      size: 426490
+      md5: 1d3286eca3a6c157b4c667ae27a56723.dir
+      size: 207188
+      nfiles: 1
   train_pipeline:
     cmd: python -m src.components.train_pipeline
     deps:
-    - path: data/interim/cars_cleaned.csv
+    - path: data/interim/cars_cleaned.parquet
       hash: md5
-      md5: d96c0d94fa88e07d30252ae98d1acd29
-      size: 426490
+      md5: 1d3286eca3a6c157b4c667ae27a56723.dir
+      size: 207188
+      nfiles: 1
     - path: src/components/pipeline_builder.py
       hash: md5
-      md5: de269100d8b189efe4f8cededf8217e6
-      size: 4790
+      md5: 831b67befd63e9d5d82e0e80288f4bd9
+      size: 4798
     - path: src/components/train_pipeline.py
       hash: md5
-      md5: 922403b0e86342dbd2b6b4a7f11d5d95
-      size: 3446
+      md5: af8926afdfb1a2e16b77e2c6ca734d46
+      size: 3399
     outs:
-    - path: data/processed/cars_dataframe.parquet
-      hash: md5
-      md5: 3ed2970a4e17edd39c6067f5f57e793a
-      size: 80383
     - path: data/processed/feature_matrix.npz
       hash: md5
-      md5: b4ed18a81690fe78cca243a845617551
-      size: 176521
+      md5: b01c4e092667d5d7d45f3f4cbf159d38
+      size: 186349
     - path: data/processed/pipeline.joblib
       hash: md5
-      md5: ceb58241bdc86871953592b332394359
-      size: 10120
+      md5: 812dd957d0e33ba63fee157e2092b400
+      size: 10111

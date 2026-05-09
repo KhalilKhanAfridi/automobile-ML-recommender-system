@@ -10,12 +10,11 @@ ARTIFACT_DIR = "data/processed"
 
 PIPELINE_PATH = f"{ARTIFACT_DIR}/pipeline.joblib"
 MATRIX_PATH   = f"{ARTIFACT_DIR}/feature_matrix.npz"
-DATA_PATH     = f"{ARTIFACT_DIR}/cars_dataframe.parquet"
 # =========================================================
 # COLUMN DEFINITIONS
 # =========================================================
 
-DROP_COLS = ['name']
+DROP_COLS = ['name', 'link']
 
 NUMERIC_COLS = [
     'price',
@@ -85,9 +84,9 @@ def train_and_save_pipeline(
     print("\n⚙️ COMPUTING REQUIRED COLUMNS")
 
     with ProgressBar():
-        df = df_dask[required_cols].compute()
+        df_features = df_dask[required_cols].compute()
 
-    print(f"\n✅ Rows Loaded: {len(df):,}")
+    print(f"\n✅ Rows Loaded: {len(df_dask):,}")
 
     # -----------------------------------------------------
     # FIT PIPELINE
@@ -97,7 +96,7 @@ def train_and_save_pipeline(
 
     pipeline = build_pipeline()
 
-    X = pipeline.fit_transform(df)
+    X = pipeline.fit_transform(df_features)
     print(X.shape)
     print("✅ Pipeline Fitted")
 
@@ -139,10 +138,8 @@ def train_and_save_pipeline(
 
     print("\n💾 SAVING DATAFRAME")
 
-    df.to_parquet(DATA_PATH, index=False)
-
     print("✅ DataFrame Saved")
 
     print("\n🎉 TRAINING COMPLETE")
 
-train_and_save_pipeline("data/interim/cars_cleaned.csv")    
+train_and_save_pipeline("data/interim/cars_cleaned.parquet", file_type="parquet")    

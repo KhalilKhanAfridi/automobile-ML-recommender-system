@@ -9,18 +9,7 @@ def clean_data(
     blocksize="64MB"
 ):
     """
-    Clean car dataset using Dask.
-
-    Parameters
-    ----------
-    input_path : str
-        Path of raw CSV file
-
-    output_path : str
-        Path where cleaned CSV will be saved
-
-    blocksize : str
-        Dask partition size
+    Clean automobile dataset using Dask
     """
 
     print("\n⚡ Loading data with Dask...")
@@ -30,7 +19,15 @@ def clean_data(
     # =====================================================
 
     df = dd.read_csv(
-        input_path,
+        f"{input_path}/cars_data.csv",
+        blocksize=blocksize,
+        assume_missing=True
+    )
+
+    link = dd.read_csv(
+        f"{input_path}/car_links.csv",
+        header=None,
+        names=["link"],
         blocksize=blocksize,
         assume_missing=True
     )
@@ -42,110 +39,111 @@ def clean_data(
     # =====================================================
 
     df = df.rename(columns={
-        'kolimeter': 'kilometer',
-        'feul_type': 'fuel_type'
+        "kolimeter": "kilometer",
+        "feul_type": "fuel_type"
     })
+
+    # =====================================================
+    # RESET INDEX (IMPORTANT FOR ALIGNMENT)
+    # =====================================================
+
+    df = df.reset_index(drop=True)
+    link = link.reset_index(drop=True)
+
+    # =====================================================
+    # ADD LINK COLUMN (SAFE - NO MERGE)
+    # =====================================================
+
+    df["link"] = link["link"]
 
     # =====================================================
     # REMOVE DUPLICATES
     # =====================================================
-
+    
     df = df.drop_duplicates()
 
     # =====================================================
     # CLEAN PRICE
     # =====================================================
 
-    df['price'] = (
-        df['price']
+    df["price"] = (
+        df["price"]
         .astype(str)
-        .str.replace(
-            r'[^0-9.]',
-            '',
-            regex=True
-        )
+        .str.replace(r"[^0-9.]", "", regex=True)
     )
 
     # =====================================================
     # CLEAN KILOMETER
     # =====================================================
 
-    df['kilometer'] = (
-        df['kilometer']
+    df["kilometer"] = (
+        df["kilometer"]
         .astype(str)
-        .str.replace(
-            r'[^0-9]',
-            '',
-            regex=True
-        )
+        .str.replace(r"[^0-9]", "", regex=True)
     )
 
     # =====================================================
     # CLEAN ENGINE
     # =====================================================
 
-    df['engine'] = (
-        df['engine']
+    df["engine"] = (
+        df["engine"]
         .astype(str)
-        .str.replace(
-            r'[^0-9]',
-            '',
-            regex=True
-        )
+        .str.replace(r"[^0-9]", "", regex=True)
     )
 
     # =====================================================
-    # CONVERT TYPES
+    # CONVERT NUMERIC TYPES
     # =====================================================
 
-    df['price'] = (
-        dd.to_numeric(
-            df['price'],
-            errors='coerce'
-        ) * 100000
+    df["price"] = (
+        dd.to_numeric(df["price"], errors="coerce") * 100000
+    ).fillna(0).astype("int64")
+
+    df["kilometer"] = (
+        dd.to_numeric(df["kilometer"], errors="coerce")
+        .fillna(0)
+        .astype("int64")
     )
 
-    df['kilometer'] = dd.to_numeric(
-        df['kilometer'],
-        errors='coerce'
-    )
-
-    df['engine'] = dd.to_numeric(
-        df['engine'],
-        errors='coerce'
+    df["engine"] = (
+        dd.to_numeric(df["engine"], errors="coerce")
+        .fillna(0)
+        .astype("int64")
     )
 
     # =====================================================
-    # CLEAN FUEL TYPE
+    # CLEAN TEXT COLUMNS
     # =====================================================
 
     df["fuel_type"] = (
         df["fuel_type"]
         .astype(str)
         .str.lower()
-        .str.replace(
-            "lp",
-            "cng",
-            regex=False
-        )
+        .str.replace("lp", "cng", regex=False)
+        .str.strip()
     )
-
-    # =====================================================
-    # CLEAN TRANSMISSION
-    # =====================================================
 
     df["transmission"] = (
         df["transmission"]
         .astype(str)
         .str.lower()
+        .str.strip()
+    )
+
+    df["name"] = (
+        df["name"]
+        .astype(str)
+        .str.replace("for sale", "", case=False, regex=False)
+        .str.strip()
     )
 
     # =====================================================
-    # CREATE BRAND COLUMN
+    # BRAND COLUMN
     # =====================================================
 
-    df['brand'] = (
-        df['name']
+    df["brand"] = (
+        df["name"]
         .astype(str)
         .str.lower()
         .str.split()
@@ -153,51 +151,57 @@ def clean_data(
     )
 
     # =====================================================
-    # CLEAN NAME
+    # SAFE STRING CASTING (FIXES YOUR ERROR)
     # =====================================================
 
-    df["name"] = (
-        df["name"]
-        .astype(str)
-        .str.replace(
-            "for Sale",
-            "",
-            case=False,
-            regex=False
-        )
-        .str.strip()
-    )
+    string_columns = [
+        "name",
+        "city",
+        "model",
+        "fuel_type",
+        "transmission",
+        "brand",
+        "link"
+    ]
+
+    for col in string_columns:
+        if col in df.columns:
+            df[col] = df[col].astype(str)
 
     # =====================================================
     # DROP NULLS
     # =====================================================
 
-    df = df.dropna()
-
+    df = df.dropna(subset=["price", "kilometer", "engine", "fuel_type", "transmission", "brand"])
+    
     # =====================================================
     # CREATE OUTPUT DIRECTORY
     # =====================================================
-
+    
     os.makedirs(
         os.path.dirname(output_path),
         exist_ok=True
     )
 
     # =====================================================
-    # SAVE CLEANED DATA
+    # SAVE DATA
     # =====================================================
 
     print("\n💾 Saving cleaned data...")
 
     with ProgressBar():
 
-        df.to_csv(
-            output_path,
-            single_file=True,
-            index=False
-        )
+ 
 
-    print(f"\n✅ Cleaned data saved at: {output_path}")
+        parquet_path = output_path.replace(".csv", ".parquet")
+
+        df.to_parquet(
+            parquet_path,
+            write_index=False
+        )
+    
+    print(f"\n✅ Cleaned CSV saved at: {output_path}")
+    print(f"✅ Parquet saved at: {parquet_path}")
 
 
 # =========================================================
@@ -207,6 +211,6 @@ def clean_data(
 if __name__ == "__main__":
 
     clean_data(
-        input_path=r"data/raw/cars_data.csv",
-        output_path=r"data/interim/cars_cleaned.csv"
+        input_path="data/raw",
+        output_path="data/interim/cars_cleaned.csv"
     )

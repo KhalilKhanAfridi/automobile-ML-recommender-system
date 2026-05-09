@@ -31,7 +31,7 @@ class DropColumns(BaseEstimator, TransformerMixin):
 # COLUMN DEFINITIONS
 # =========================================================
 
-DROP_COLS = ['name']
+DROP_COLS = ['name', 'link']
 
 NUMERIC_COLS = [
     'price',

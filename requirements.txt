@@ -1,19 +1,11 @@
-# local package
--e .
-
-# external requirements
-# click
-# Sphinx
-# coverage
-# awscli
-# flake8
-# selenium
-
-python-dotenv>=0.5.1
-pipreqs
-pandas
-numpy
-scikit-learn   dask[dataframe]
-category_encoders
-rapidfuzz
-dask[dataframe]
+fastapi==0.104.1
+uvicorn==0.24.0
+scikit-learn==1.3.2
+numpy==1.26.2
+scipy==1.11.4
+pandas==2.1.3
+joblib==1.3.2
+rapidfuzz==3.4.0
+pyarrow==13.0.0
+pydantic==2.5.0
+dask[dataframe]==2023.12.0
