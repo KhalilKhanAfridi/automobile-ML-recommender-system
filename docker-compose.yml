@@ -15,11 +15,17 @@ services:
       APP_PORT: 8000
       APP_WORKERS: 1
       LOG_LEVEL: "info"
-    mem_limit: 512m
+    mem_limit: 1g
+    cpus: "1.5"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

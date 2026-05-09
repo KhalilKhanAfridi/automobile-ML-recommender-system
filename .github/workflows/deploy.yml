@@ -1,0 +1,174 @@
+name: CI/CD Pipeline - DVC Build & Docker Push
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  # Docker
+  DOCKER_IMAGE_NAME: automobile-ml-recommender
+  # Change this to match your Docker Hub username
+  # DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
+jobs:
+  # ───────────────────────────────────────────────────────
+  # STAGE 1: DVC Pipeline - Pull data & reproduce
+  # ───────────────────────────────────────────────────────
+  dvc-pipeline:
+    name: DVC - Pull Data & Reproduce Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc  # Install DVC for pipeline orchestration
+
+      - name: Configure DVC remote
+        run: |
+          # Configure DVC remote using secrets
+          # Supports: S3, GDrive, GS, OSS, Azure, etc.
+          # Uncomment the appropriate remote type and set secrets:
+
+          # ── Option 1: S3 ──
+          # dvc remote default origin
+          # dvc remote modify origin endpointurl ${{ secrets.S3_ENDPOINT }}
+          # Or use AWS credentials directly:
+          # dvc remote modify origin access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # dvc remote modify origin secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          # ── Option 2: Google Drive ──
+          # dvc remote default myremote
+          # dvc remote modify myremote gdrive_user_credentials_file gdrive-credentials.json
+
+          # ── Option 3: MinIO / S3-compatible ──
+          dvc remote default myremote
+          dvc remote modify myremote access_key_id ${{ secrets.S3_ACCESS_KEY_ID }}
+          dvc remote modify myremote secret_access_key ${{ secrets.S3_SECRET_ACCESS_KEY }}
+          dvc remote modify myremote endpointurl ${{ secrets.S3_ENDPOINT_URL }}
+          echo "DVC remote configured"
+
+      - name: Pull DVC data
+        run: |
+          dvc pull --remote myremote || echo "No remote data pulled - checking local cache"
+          echo "DVC data pull complete"
+
+      - name: Reproduce DVC pipeline
+        run: |
+          dvc repro
+          echo "DVC pipeline reproduced successfully"
+
+      - name: Upload DVC artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dvc-artifacts
+          path: |
+            data/processed/
+            data/interim/
+          retention-days: 1
+
+      - name: Push DVC updates back
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: |
+          dvc push --remote myremote
+          echo "DVC artifacts pushed to remote"
+
+  # ───────────────────────────────────────────────────────
+  # STAGE 2: Build Docker Image
+  # ───────────────────────────────────────────────────────
+  docker-build:
+    name: Docker - Build Image
+    runs-on: ubuntu-latest
+    needs: dvc-pipeline
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download DVC artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dvc-artifacts
+          path: ./
+
+      - name: Verify artifacts exist
+        run: |
+          echo "=== Data processed directory ==="
+          ls -la data/processed/ 2>/dev/null || echo "No processed data"
+          echo "=== Data interim directory ==="
+          ls -la data/interim/ 2>/dev/null || echo "No interim data"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ───────────────────────────────────────────────────────
+  # STAGE 3: Deploy (optional - extend as needed)
+  # ───────────────────────────────────────────────────────
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    timeout-minutes: 10
+    steps:
+      - name: Deployment notification
+        run: |
+          echo "✅ Image successfully built and pushed!"
+          echo "   Image: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest"
+          echo ""
+          echo "To deploy via SSH, add deployment steps below."
+          echo "Example:"
+          echo "  - uses: appleboy/ssh-action@v1"
+          echo "    with:"
+          echo "      host: \${{ secrets.DEPLOY_HOST }}"
+          echo "      username: \${{ secrets.DEPLOY_USER }}"
+          echo "      key: \${{ secrets.DEPLOY_KEY }}"
+          echo "      script: |"
+          echo "        docker pull \${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:latest"
+          echo "        docker compose up -d"

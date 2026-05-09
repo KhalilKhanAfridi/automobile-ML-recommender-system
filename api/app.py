@@ -4,14 +4,13 @@ from contextlib import asynccontextmanager
 from typing import Optional
 import joblib, numpy as np, pandas as pd
 import scipy.sparse as sparse
-import dask.dataframe as dd
 from rapidfuzz import fuzz, process
 from sklearn.metrics.pairwise import cosine_similarity
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+BASE_DIR = os.environ.get("BASE_DIR", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 PIPELINE_PATH = os.path.join(BASE_DIR, "data", "processed", "pipeline.joblib")
 MATRIX_PATH   = os.path.join(BASE_DIR, "data", "processed", "feature_matrix.npz")
@@ -45,11 +44,7 @@ def load_artifacts():
     except Exception:
         X = np.load(MATRIX_PATH, mmap_mode="r")["X"]
 
-    df = dd.read_parquet(
-        PARQUET_PATH,
-        blocksize="64MB",
-        assume_missing=True
-    ).compute()
+    df = pd.read_parquet(PARQUET_PATH)
 
     # CRITICAL: reset so that df.iloc[i] == matrix row i == search_texts[i]
     df = df.reset_index(drop=True)
