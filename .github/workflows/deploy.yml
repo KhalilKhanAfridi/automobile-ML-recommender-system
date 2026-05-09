@@ -44,7 +44,7 @@ jobs:
       # 🔥 CRITICAL FIX (this is what you were missing)
       - name: Run DVC pipeline (actually build model)
         run: |
-          dvc repro
+          dvc dag
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
