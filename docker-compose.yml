@@ -1,0 +1,31 @@
+version: "3.8"
+
+services:
+  car-recommender:
+    build: .
+    image: car-recommender:latest
+    container_name: car-recommender
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/processed:/app/data/processed:ro
+      - ./data/interim:/app/data/interim:ro
+    environment:
+      APP_HOST: "0.0.0.0"
+      APP_PORT: 8000
+      APP_WORKERS: 1
+      LOG_LEVEL: "info"
+    mem_limit: 1g
+    cpus: "1.5"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

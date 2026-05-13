@@ -1,0 +1,29 @@
+stages:
+
+  data_cleaning:
+
+    cmd: python src/components/data_cleaning.py
+
+    deps:
+      - src/components/data_cleaning.py
+      - data/raw/cars_data.csv
+      - data/raw/car_links.csv
+
+    outs:
+
+      - data/interim/cars_cleaned.parquet
+
+
+  train_pipeline:
+
+    cmd: python -m src.components.train_pipeline
+
+    deps:
+      - src/components/train_pipeline.py
+      - src/components/pipeline_builder.py
+      - data/interim/cars_cleaned.parquet
+
+    outs:
+      - data/processed/pipeline.joblib
+      - data/processed/feature_matrix.npz
+     

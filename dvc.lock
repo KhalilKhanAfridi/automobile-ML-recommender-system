@@ -1,0 +1,76 @@
+schema: '2.0'
+stages:
+  train_model:
+    cmd: python src/models/train_model.py
+    deps:
+    - path: data/interim/cars_cleaned.csv
+      hash: md5
+      md5: 5fb7d012cbfa31c179353378ee55f9d7
+      size: 417134
+    - path: src/features/build_features.py
+      hash: md5
+      md5: 71e0de872fb2e6e1df4f3a4a2520c0e5
+      size: 7205
+    - path: src/models/train_model.py
+      hash: md5
+      md5: 6b71cfa8467ab29f4f8ca50c34c20bd3
+      size: 3065
+    outs:
+    - path: recommender_artifacts/cars_dataframe.parquet
+      hash: md5
+      md5: 815ff3b0883fc83fafcb066119df72d0
+      size: 80372
+    - path: recommender_artifacts/feature_matrix.npz
+      hash: md5
+      md5: 738a67f1b2fb497e498bfa4dcfd6a34a
+      size: 176522
+    - path: recommender_artifacts/pipeline.joblib
+      hash: md5
+      md5: f03f2398804478f84cf8d604c060f977
+      size: 10117
+  data_cleaning:
+    cmd: python src/components/data_cleaning.py
+    deps:
+    - path: data/raw/car_links.csv
+      hash: md5
+      md5: 138f0f6b73a86837d159d427005d6c08
+      size: 462060
+    - path: data/raw/cars_data.csv
+      hash: md5
+      md5: 2a22533add5c5544c6deea5e34ae3749
+      size: 516415
+    - path: src/components/data_cleaning.py
+      hash: md5
+      md5: c55ec4719853ceb8ddddec74cbde1c3e
+      size: 5603
+    outs:
+    - path: data/interim/cars_cleaned.parquet
+      hash: md5
+      md5: 1d3286eca3a6c157b4c667ae27a56723.dir
+      size: 207188
+      nfiles: 1
+  train_pipeline:
+    cmd: python -m src.components.train_pipeline
+    deps:
+    - path: data/interim/cars_cleaned.parquet
+      hash: md5
+      md5: 1d3286eca3a6c157b4c667ae27a56723.dir
+      size: 207188
+      nfiles: 1
+    - path: src/components/pipeline_builder.py
+      hash: md5
+      md5: 831b67befd63e9d5d82e0e80288f4bd9
+      size: 4798
+    - path: src/components/train_pipeline.py
+      hash: md5
+      md5: af8926afdfb1a2e16b77e2c6ca734d46
+      size: 3399
+    outs:
+    - path: data/processed/feature_matrix.npz
+      hash: md5
+      md5: b01c4e092667d5d7d45f3f4cbf159d38
+      size: 186349
+    - path: data/processed/pipeline.joblib
+      hash: md5
+      md5: 812dd957d0e33ba63fee157e2092b400
+      size: 10111

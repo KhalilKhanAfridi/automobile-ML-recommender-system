@@ -77,6 +77,11 @@ target/
 # Jupyter NB Checkpoints
 .ipynb_checkpoints/
 
+# DVC-tracked directories — excluded from git (tracked by DVC instead)
+data/interim/
+data/processed/
+models/
+
 # exclude data from source control by default
 
 # Mac OS-specific storage files

@@ -1,0 +1,54 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Notebooks & experiments ────────────────────────────────────────────────────
+notebooks/
+*.ipynb
+.ipynb_checkpoints/
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
+tests/
+test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+coverage.xml
+.coverage
+htmlcov/
+
+# ── Git & CI ──────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+.github/
+.gitlab-ci.yml
+
+# ── IDE / OS ──────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.DS_Store
+Thumbs.db
+
+# ── Docs ──────────────────────────────────────────────────────────────────────
+README.md
+docs/
+# README is needed for Hugging Face Space metadata
+!README.md
+
+# ── Env files (never bake secrets into the image) ─────────────────────────────
+.env
+.env.*
+*.env

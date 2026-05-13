@@ -1,0 +1,119 @@
+name: CI/CD Pipeline - DVC Build & Hugging Face Deploy
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+
+  # ─────────────────────────────────────────────
+  # STAGE 1: DVC Pipeline
+  # ─────────────────────────────────────────────
+  dvc-pipeline:
+    name: DVC - Pull Data & Reproduce Pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Cache DVC cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/dvc
+          key: dvc-cache-${{ hashFiles('dvc.lock') }}
+          restore-keys: |
+            dvc-cache-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc
+
+      - name: Pull DVC data from remote
+        run: |
+          dvc pull --run-cache || echo "No DVC remote configured, skipping pull"
+
+      - name: Reproduce DVC pipeline
+        run: |
+          dvc repro
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dvc-artifacts
+          path: |
+            data/processed/
+            data/interim/
+          compression-level: 0  # no compression — binary files are faster
+
+  # ─────────────────────────────────────────────
+  # STAGE 2: Hugging Face Deploy
+  # ─────────────────────────────────────────────
+  hf-deploy:
+    name: Deploy to Hugging Face Space
+    runs-on: ubuntu-latest
+    needs: dvc-pipeline
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download DVC artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dvc-artifacts
+          path: ./data/
+
+      - name: Cache pip (HF deploy)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-hf-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-hf-
+
+      - name: Install HF CLI
+        run: pip install huggingface_hub
+
+      - name: Push to Hugging Face Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set -e
+          SPACE_URL="https://huggingface.co/spaces/kami2334/car_recommender"
+
+          echo "Cloning HF Space..."
+          git clone --depth 1 "$SPACE_URL" hf_space
+
+          echo "Syncing files..."
+          rsync -av --exclude='.git' --exclude='.gitignore' ./ hf_space/
+
+          cd hf_space
+          git config user.email "github-actions@github.com"
+          git config user.name "github-actions"
+
+          # Force-add data artifacts that are gitignored by the main repo
+          # (HF Space needs the processed data for the Docker build)
+          git add -f data/processed/ data/interim/
+          git add .
+
+          if git diff --cached --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "Auto deploy from GitHub CI/CD ($(date -u '+%Y-%m-%d %H:%M UTC'))"
+            echo "Pushing to HF Space..."
+            git push https://kami2334:$HF_TOKEN@huggingface.co/spaces/kami2334/car_recommender main
+            echo "✅ Deployed successfully — HF Space is building..."
+          fi

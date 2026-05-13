@@ -1,0 +1,5 @@
+model:
+  top_n: 5
+
+fuzzy_matching:
+  threshold: 60
